@@ -1,0 +1,2 @@
+source /home/yanno/esp/Multi-Sensor-Node/Multi-Sensor-Node/build/bootloader/gdbinit/symbols
+source /home/yanno/esp/Multi-Sensor-Node/Multi-Sensor-Node/build/bootloader/gdbinit/connect

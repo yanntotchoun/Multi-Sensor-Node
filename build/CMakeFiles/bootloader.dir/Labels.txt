@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/home/yanno/esp/Multi-Sensor-Node/Multi-Sensor-Node/build/CMakeFiles/bootloader
+/home/yanno/esp/Multi-Sensor-Node/Multi-Sensor-Node/build/CMakeFiles/bootloader.rule
+/home/yanno/esp/Multi-Sensor-Node/Multi-Sensor-Node/build/CMakeFiles/bootloader-complete.rule
+/home/yanno/esp/Multi-Sensor-Node/Multi-Sensor-Node/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+/home/yanno/esp/Multi-Sensor-Node/Multi-Sensor-Node/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/home/yanno/esp/Multi-Sensor-Node/Multi-Sensor-Node/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/home/yanno/esp/Multi-Sensor-Node/Multi-Sensor-Node/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/home/yanno/esp/Multi-Sensor-Node/Multi-Sensor-Node/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/home/yanno/esp/Multi-Sensor-Node/Multi-Sensor-Node/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/home/yanno/esp/Multi-Sensor-Node/Multi-Sensor-Node/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
