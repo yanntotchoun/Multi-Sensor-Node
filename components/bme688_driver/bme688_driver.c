@@ -1,107 +1,8 @@
 #include "include/bme688_driver.h"
 
-struct bme688_conf
-{
-    /*! Humidity oversampling. Refer @ref osx*/
-    uint8_t os_hum;
 
-    /*! Temperature oversampling. Refer @ref osx */
-    uint8_t os_temp;
 
-    /*! Pressure oversampling. Refer @ref osx */
-    uint8_t os_pres;
 
-    /*! Filter coefficient. Refer @ref filter*/
-    uint8_t filter;
-
-    /*!
-     * Standby time between sequential mode measurement profiles.
-     * Refer @ref odr
-     */
-    uint8_t odr;
-};
-
-struct bme688_heatr_conf
-{
-    /*! Enable gas measurement. Refer @ref en_dis */
-    uint8_t enable;
-
-    /*! Store the heater temperature for forced mode degree Celsius */
-    uint16_t heatr_temp;
-
-    /*! Store the heating duration for forced mode in milliseconds */
-    uint16_t heatr_dur;
-
-    /*! Store the heater temperature profile in degree Celsius */
-    uint16_t *heatr_temp_prof;
-
-    /*! Store the heating duration profile in milliseconds */
-    uint16_t *heatr_dur_prof;
-
-    /*! Variable to store the length of the heating profile */
-    uint8_t profile_len;
-
-    /*!
-     * Variable to store heating duration for parallel mode
-     * in milliseconds
-     */
-    uint16_t shared_heatr_dur;
-};
-
-struct bme688_dev
-{
-    /*! Chip Id */
-    uint8_t chip_id;
-
-    /*!
-     * The interface pointer is used to enable the user
-     * to link their interface descriptors for reference during the
-     * implementation of the read and write interfaces to the
-     * hardware.
-     */
-    void *intf_ptr;
-
-    /*!
-     *             Variant id
-     * ----------------------------------------
-     *     Value   |           Variant
-     * ----------------------------------------
-     *      0      |   BME68X_VARIANT_GAS_LOW
-     *      1      |   BME68X_VARIANT_GAS_HIGH
-     * ----------------------------------------
-     */
-    uint32_t variant_id;
-
-    /*! SPI/I2C interface */
-    enum bme68x_intf intf;
-
-    /*! Memory page used */
-    uint8_t mem_page;
-
-    /*! Ambient temperature in Degree C*/
-    int8_t amb_temp;
-
-    /*! Sensor calibration data */
-    struct bme68x_calib_data calib;
-
-    /*! Read function pointer */
-    bme68x_read_fptr_t read;
-
-    /*! Write function pointer */
-    bme68x_write_fptr_t write;
-
-    /*! Delay function pointer */
-    bme68x_delay_us_fptr_t delay_us;
-
-    /*! To store interface pointer error */
-    BME68X_INTF_RET_TYPE intf_rslt;
-
-    /*! Store the info messages */
-    uint8_t info_msg;
-};
-struct bme688_driver bme;
-struct bme688_conf conf;
-struct bme688_heatr_conf heatr;
 int8_t rslt;
 
 //CONST
@@ -110,6 +11,8 @@ const int8_t forced_mode =1;
 #define BME688_RESET 0x73
 #define BME688_VARIANT_ID 0xF0
 #define BME688_MODE 0x74
+/* Macro for count of samples to be displayed */
+#define SAMPLE_COUNT  UINT16_C(300)
 //I2C = BME68X_I2C_INTF
 
 
@@ -146,24 +49,25 @@ void bme688_check_rslt(const char api_name[], int8_t rslt)
     }
 }
 
-      
-esp_err_t bme688_init(struct bme688_driver bme)
+//initiliases the sensor by reading the chip id and calibrating it too
+esp_err_t bme688_init(struct bme68x_dev bme)
 {
           rslt = bme68x_init(&bme);
           
           bme688_check_rslt("bme initialisation",rslt);
+          return rslt;
+}
 
-};
-
-
-esp_err_t bme688_set_forced_mode(struct bme688_driver bme){
-
+//sets the bme688 to forced mode
+esp_err_t bme688_set_forced_mode(struct bme68x_dev bme)
+{
    rslt = bme68x_set_op_mode(BME68X_FORCED_MODE,&bme);
 
     bme688_check_rslt("bme set forced mode",rslt);
+    return rslt;
 }
-
-esp_err_t bme688_set_conf(struct bme688_driver dev,struct bme688_driver conf)
+//it is used to set the oversampling, the filer and the odr configuration
+esp_err_t bme688_set_conf(struct bme68x_dev dev, struct bme68x_conf conf)
 {
   conf.filter=BME68X_FILTER_OFF;
   conf.odr=BME68X_ODR_NONE;
@@ -171,27 +75,78 @@ esp_err_t bme688_set_conf(struct bme688_driver dev,struct bme688_driver conf)
   conf.os_pres = BME68X_OS_1X;
   conf.os_temp = BME68X_OS_2X;
 
-  rslt = bme68x_set_conf(conf,dev);
+  rslt = bme68x_set_conf(&conf, &dev);
   bme688_check_rslt("bme set configuration",rslt);
-};
+  return rslt;
+}
 
-esp_err_t bme688_set_heatr_conf(uint8_t forced_mode,struct bme688_driver &bme,struct bme688_heatr_conf)
+
+// it is used to set the gas configuration of the sensor
+esp_err_t bme688_set_heatr_conf(uint8_t forced_mode, struct bme68x_dev bme, struct bme68x_heatr_conf heatr)
 {
 heatr.enable = BME68X_ENABLE;
 heatr.heatr_temp = 300;
-heatr.heatr_dur =100;
-rslt = bme68x_set_heatr_conf(BME68X_FORCED_MODE,&heatr,&bme);
+heatr.heatr_dur = 100;
+rslt = bme68x_set_heatr_conf(BME68X_FORCED_MODE, &heatr,&bme);
 bme688_check_rslt("bme heater configuration",rslt);
-};
+return rslt;
+}
 
-uint32_t bme_get_time_ms(struct bme688_driver bme, struct bme688_conf conf,struct bme688_heatr_conf heatr)
+uint32_t bme_get_time_ms(struct bme68x_dev bme, struct bme68x_conf conf, struct bme68x_heatr_conf heatr)
 {
-  rslt = bme68x_get_meas_dur(BME68X_FORCED_MODE,&conf,&bme)+(heatr.heatr_dur *1000);
+  uint32_t meas_dur = bme68x_get_meas_dur(BME68X_FORCED_MODE, &conf, &bme) + (heatr.heatr_dur * 1000);
 
-  if(!(rslt = ESP_OK)){
+  if(rslt != ESP_OK){
     return 6767;
   }
-};
+  return meas_dur;
+}
+
+void bme688_get_data(uint8_t forced_mode,struct bme68x_data data,struct bme68x_dev dev,struct bme68x_conf conf,struct bme68x_heatr_conf heatr){
+    uint32_t del_period=0;
+    int64_t time_ms=0;
+    uint16_t sample_count =1;
+    uint8_t n_fields;
+
+    while(sample_count<= SAMPLE_COUNT){
+    //setting forced mode triggers a reading?
+    bme688_set_forced_mode(dev);
+    
+    //calculates delay period in ms
+    del_period = bme_get_time_ms(dev,conf,heatr);
+    dev.delay_us(del_period,dev.intf_ptr);
+    
+    time_ms = (esp_timer_get_time()/1000);
+
+    //
+    rslt = bme68x_get_data(BME68X_FORCED_MODE,&data,&n_fields,&dev);
+    bme688_check_rslt("bme data collection",rslt);
+
+    if (n_fields)
+        {
+    #ifdef BME68X_USE_FPU
+            printf("%u, %lu, %.2f, %.2f, %.2f, %.2f, 0x%x\n",
+                   sample_count,
+                   (long unsigned int)time_ms,
+                   data.temperature,
+                   data.pressure,
+                   data.humidity,
+                   data.gas_resistance,
+                   data.status);
+    #else
+            printf("%u, %lu, %d, %lu, %lu, %lu, 0x%x\n",
+                   sample_count,
+                   (long unsigned int)time_ms,
+                   (data.temperature / 100),
+                   (long unsigned int)data.pressure,
+                   (long unsigned int)(data.humidity / 1000),
+                   (long unsigned int)data.gas_resistance,
+                   data.status);
+    #endif
+            sample_count++;
+        }
+    }
+}
 
 
 
