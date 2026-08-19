@@ -6,7 +6,7 @@ i2c_master_bus_handle_t bus_handle=NULL;
 i2c_master_dev_handle_t bme688=NULL;
 i2c_master_dev_handle_t oled=NULL;
 
- const char *TAG = "I2C";
+static const char *TAG = "I2C";
 
 esp_err_t esp_init_i2c(void){
 
@@ -56,4 +56,34 @@ void oled_send_command(uint8_t command)
         sizeof(data),
         -1
     );
+}
+
+BME68X_INTF_RET_TYPE user_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t len, void *intf_ptr)
+{
+    esp_err_t err = i2c_master_transmit_receive(
+        bme688,
+        &reg_addr, 1,
+        reg_data, len,
+        1000 / portTICK_PERIOD_MS
+    );
+    return (err == ESP_OK) ? 0 : -1;
+}
+
+BME68X_INTF_RET_TYPE user_i2c_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t len, void *intf_ptr)
+{
+    uint8_t buf[len + 1];
+    buf[0] = reg_addr;
+    memcpy(&buf[1], reg_data, len);
+
+    esp_err_t err = i2c_master_transmit(
+        bme688,
+        buf, len + 1,
+        1000 / portTICK_PERIOD_MS
+    );
+    return (err == ESP_OK) ? 0 : -1;
+}
+
+void user_delay_us(uint32_t period, void *intf_ptr)
+{
+    esp_rom_delay_us(period);
 }

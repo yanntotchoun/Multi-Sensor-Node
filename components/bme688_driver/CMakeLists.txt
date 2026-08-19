@@ -7,4 +7,5 @@ idf_component_register(
     esp_timer
     esp_common
     esp_driver_uart
+    i2c
 )

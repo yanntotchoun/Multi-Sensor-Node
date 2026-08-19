@@ -7,4 +7,3 @@ void oled_init(void);
 void oled_turn_on_screen(void);
 void oled_turn_off_screen(void);
 
-void oled_send_command(uint8_t command);

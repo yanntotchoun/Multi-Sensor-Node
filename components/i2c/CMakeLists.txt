@@ -8,4 +8,6 @@ idf_component_register(
     log
     esp_common
     esp_driver_uart
+    bme688
+    freertos driver
 )
