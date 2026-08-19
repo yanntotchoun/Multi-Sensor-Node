@@ -17,8 +17,7 @@ const int8_t forced_mode =1;
 
 static uint8_t dev_addr = BME688_ADDR;
 static const char *TAG = "BME688";
-
-// i need to pass everything by pointer
+static int64_t bme_ready_time_us = 0;
 
 void bme688_check_rslt(const char api_name[], int8_t rslt)
 {
@@ -107,51 +106,82 @@ uint32_t bme_get_time_ms(struct bme68x_dev *bme,  struct bme68x_conf *conf,  str
     return meas_dur;
 }
 
-void bme688_get_data(uint8_t* n_fields,uint8_t forced_mode,struct bme68x_data* data,struct bme68x_dev* dev,struct bme68x_conf* conf,struct bme68x_heatr_conf* heatr){
+void bme688_trigger_reading(struct bme68x_dev *bme, struct bme68x_conf *conf, struct bme68x_heatr_conf *heatr){
+    int8_t rslt;
     uint32_t del_period=0;
-    int64_t time_ms=0;
-    uint16_t sample_count =1;
 
-    while(sample_count<= SAMPLE_COUNT){
-    //setting forced mode triggers a reading?
-    bme688_set_forced_mode(dev);
-    
-    //calculates delay period in ms
-    del_period = bme_get_time_ms(dev,conf,heatr);
-    ESP_LOGI(TAG, "del_period = %lu", (unsigned long)del_period);
-    dev->delay_us(del_period,dev->intf_ptr);
-    
-    time_ms = (esp_timer_get_time()/1000);
+    rslt = bme68x_set_op_mode(BME68X_FORCED_MODE,bme);
+    bme688_check_rslt("bme trigger reading",rslt);
+    del_period = bme_get_time_ms(bme,conf,heatr);
+    bme_ready_time_us = esp_timer_get_time() + del_period;
 
-    //
-    rslt = bme68x_get_data(BME68X_FORCED_MODE,data,n_fields,dev);
-    bme688_check_rslt("bme data collection",rslt);
-
-    if (*n_fields)
-        {
-    #ifdef BME68X_USE_FPU
-            printf("%u, %lu, %.2f, %.2f, %.2f, %.2f, 0x%x\n",
-                   sample_count,
-                   (long unsigned int)time_ms,
-                   data->temperature,
-                   data->pressure,
-                   data->humidity,
-                   data->gas_resistance,
-                   data->status);
-    #else
-            printf("%u, %lu, %d, %lu, %lu, %lu, 0x%x\n",
-                   sample_count,
-                   (long unsigned int)time_ms,
-                   (data->temperature / 100),
-                   (long unsigned int)data->pressure,
-                   (long unsigned int)(data->humidity / 1000),
-                   (long unsigned int)data->gas_resistance,
-                   data->status);
-    #endif
-            sample_count++;
-        }
-    }
 }
+
+bool bme688_read_reading(uint8_t* n_fields,struct bme68x_data* data,struct bme68x_dev* dev){
+  int8_t rslt;
+    if(!bme688_reading_ready()){
+        return false;
+    }else{
+          rslt = bme68x_get_data(BME68X_FORCED_MODE,data,n_fields,dev);
+          bme688_check_rslt("bme data collection",rslt);   
+        return true;
+           return *n_fields > 0;// if bme688 gets a reading return true
+     }
+
+}
+
+bool bme688_reading_ready(){
+    if(esp_timer_get_time()>=bme_ready_time_us){
+        return true;
+    }
+    return false;
+}
+
+// void bme688_get_data(uint8_t* n_fields,uint8_t forced_mode,struct bme68x_data* data,struct bme68x_dev* dev,struct bme68x_conf* conf,struct bme68x_heatr_conf* heatr){
+//     uint32_t del_period=0;
+//     int64_t time_ms=0;
+//     uint16_t sample_count =1;
+
+//     while(sample_count<= SAMPLE_COUNT){
+//     //setting forced mode triggers a reading?
+//     bme688_set_forced_mode(dev);
+    
+//     //calculates delay period in ms
+//     del_period = bme_get_time_ms(dev,conf,heatr);
+//     ESP_LOGI(TAG, "del_period = %lu", (unsigned long)del_period);
+//     dev->delay_us(del_period,dev->intf_ptr);
+    
+//     time_ms = (esp_timer_get_time()/1000);
+
+//     //
+//     rslt = bme68x_get_data(BME68X_FORCED_MODE,data,n_fields,dev);
+//     bme688_check_rslt("bme data collection",rslt);
+
+//     if (*n_fields)
+//         {
+//     #ifdef BME68X_USE_FPU
+//             printf("%u, %lu, %.2f, %.2f, %.2f, %.2f, 0x%x\n",
+//                    sample_count,
+//                    (long unsigned int)time_ms,
+//                    data->temperature,
+//                    data->pressure,
+//                    data->humidity,
+//                    data->gas_resistance,
+//                    data->status);
+//     #else
+//             printf("%u, %lu, %d, %lu, %lu, %lu, 0x%x\n",
+//                    sample_count,
+//                    (long unsigned int)time_ms,
+//                    (data->temperature / 100),
+//                    (long unsigned int)data->pressure,
+//                    (long unsigned int)(data->humidity / 1000),
+//                    (long unsigned int)data->gas_resistance,
+//                    data->status);
+//     #endif
+//             sample_count++;
+//         }
+//     }
+// }
 
 
 
