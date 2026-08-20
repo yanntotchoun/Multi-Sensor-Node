@@ -1,10 +1,16 @@
+
 #include "include/i2c.h"
 #define SCL_IO 22
 #define SDA_IO 21
 #define OLED_ADDRESS 0x3C
+
+#define OLED_WIDTH  128
+#define OLED_HEIGHT 64
+
+
 i2c_master_bus_handle_t bus_handle=NULL;
 i2c_master_dev_handle_t bme688=NULL;
-i2c_master_dev_handle_t oled=NULL;
+i2c_master_dev_handle_t oled = NULL;
 
 static const char *TAG = "I2C";
 
@@ -43,20 +49,49 @@ esp_err_t probe(uint16_t address){
     return i2c_master_probe(bus_handle,address,15);
 }
 
-void oled_send_command(uint8_t command)
+esp_err_t oled_send_command(uint8_t command)
 {
     uint8_t data[2];
 
     data[0] = 0x00;      // control byte: command
     data[1] = command;
 
-    i2c_master_transmit(
+  esp_err_t err = i2c_master_transmit(
         oled,
         data,
         sizeof(data),
-        -1
+        1000
     );
+     ESP_LOGI("OLED",
+             "Command 0x%02X -> %s",
+             command,
+             esp_err_to_name(err));
+
+    return err;
 }
+
+esp_err_t oled_write_data(uint8_t command)
+{
+    uint8_t data[2];
+
+    data[0] = 0x10;      // control byte: write
+    data[1] = command;
+
+  esp_err_t err = i2c_master_transmit(
+        oled,
+        data,
+        sizeof(data),
+        1000
+    );
+     ESP_LOGI("OLED",
+             "Write 0x%02X -> %s",
+             command,
+             esp_err_to_name(err));
+
+    return err;
+}
+
+
 
 BME68X_INTF_RET_TYPE user_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t len, void *intf_ptr)
 {
@@ -87,3 +122,4 @@ void user_delay_us(uint32_t period, void *intf_ptr)
 {
     esp_rom_delay_us(period);
 }
+
