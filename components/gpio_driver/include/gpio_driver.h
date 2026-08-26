@@ -7,7 +7,6 @@
 #include "esp_check.h"
 
 esp_err_t gpio_init(void);
-uint8_t get_button_power(void);
 uint8_t get_button_sensor(void);
 uint8_t get_button_page(void);
 #endif

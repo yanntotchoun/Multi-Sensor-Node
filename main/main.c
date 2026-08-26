@@ -26,13 +26,15 @@ static struct bme68x_data latest_data;
 
 static bool wifi_connected = false;
 static bool data_valid = false;
+static int adc_raw;
+static int voltage;      
 static const char *TAG = "MAIN";
 
 typedef enum
 {
     SENSOR_PAGE,
     SYSTEM_PAGE,
-        PAGE_COUNT
+    PAGE_COUNT
 
 } oled_page_t;
 
@@ -41,7 +43,6 @@ typedef enum
 typedef enum
 {
     EVENT_TRIGGER_READING,
-    EVENT_POWER,
     EVENT_DATA_READY,
     EVENT_PAGE
 
@@ -106,12 +107,24 @@ void display_page(oled_page_t page)
         break;
 
         case SYSTEM_PAGE:
+
              if (wifi_connected) {
             oled_draw_string(0, 0, "WiFi: Connected");
             } else {
            oled_draw_string(0, 0, "WiFi: Offline");
              }
         oled_update();
+
+        snprintf(
+                buffer,
+                sizeof(buffer),
+                "Battery Level: %d %%",
+                (voltage*100)/4200
+            );
+
+            oled_draw_string(0, 12, buffer);
+
+
 
         break;
     
@@ -128,24 +141,15 @@ void display_page(oled_page_t page)
 
 void button_task(void *arg)
 {
-    uint8_t previous_power =1;  
     uint8_t previous_sensor =1; 
     uint8_t previous_page =1; 
 
     while (1)
     {
 
-      uint8_t current_power = get_button_power();
       uint8_t current_sensor = get_button_sensor();
        uint8_t current_page = get_button_page();
 
-      if(current_power ==0 && previous_power ==1){
-           vTaskDelay(pdMS_TO_TICKS(20));
-          if(get_button_power()==0){
-          system_event_t event = EVENT_POWER;  
-           xQueueSend(event_queue, &event, 0);  
-      }
-      }
     
        if(current_page ==0 && previous_page ==1){
           vTaskDelay(pdMS_TO_TICKS(20));
@@ -162,13 +166,25 @@ void button_task(void *arg)
       } 
       }
     
-        previous_power = current_power;
+    
        previous_sensor = current_sensor;
         previous_page = current_page;
     
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
+
+void battery_task(void *arg)
+{
+    while(1){
+    adc_read_battery(&adc_raw);
+    adc_get_voltage(adc_raw,&voltage);
+      vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+ 
+}
+
 
 
 void bme688_task(void *arg)
@@ -246,15 +262,6 @@ void system_task(void *arg)
         {
             switch (event)
             {
-                case EVENT_POWER:
-               oled_turn_off_screen();
-
-                // Wake when GPIO33 is pulled LOW
-                esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 0);
-
-                esp_deep_sleep_start();
-                                break;
-
                     case EVENT_DATA_READY:
                    display_page(current_page);
                    break;
@@ -314,17 +321,7 @@ gpio_init();
 
 adc_init();
 
-  esp_sleep_wakeup_cause_t cause =
-        esp_sleep_get_wakeup_cause();
 
-    if (cause == ESP_SLEEP_WAKEUP_EXT0)
-    {
-        ESP_LOGI(TAG, "Woke up from button");
-    }
-    else
-    {
-        ESP_LOGI(TAG, "Normal boot");
-    }
 
    event_queue = xQueueCreate(
         10,
@@ -358,6 +355,14 @@ adc_init();
     xTaskCreate(
     system_task,
     "System",
+    4096,
+    NULL,
+    3,
+    NULL
+);
+ xTaskCreate(
+    battery_task,
+    "Battery",
     4096,
     NULL,
     3,
