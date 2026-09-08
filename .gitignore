@@ -1,0 +1,13 @@
+# KiCad backups
+*-backups/
+*.kicad_prl
+
+# Temporary files
+*.tmp
+*.bak
+*.lck
+~*
+
+# Windows junk
+Thumbs.db
+Desktop.ini
